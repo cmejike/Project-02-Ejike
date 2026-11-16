@@ -2,7 +2,9 @@
 title: "Long COVID Symptom Transitions in the Arizona CoVHORT"
 subtitle: "INFO 526 Project 2 Proposal"
 author: "Chidera Ejike"
-format: html
+format:
+  html:
+    embed-resources: true
 editor: visual
 ---
 
@@ -180,3 +182,10 @@ Soriano JB, Murthy S, Marshall JC, Relan P, Diaz JV; WHO Clinical Case Definitio
 Thaweethai T, Jolley SE, Karlson EW, et al. Development of a definition of postacute sequelae of SARS-CoV-2 infection. *JAMA*. 2023;329(22):1934–1946.
 
 Thaweethai T, Donohue SE, Martin JN, et al. Long COVID trajectories in the prospectively followed RECOVER-Adult US cohort. *Nat Commun*. 2025;16:9557.
+
+## AI use disclosure
+
+I used Claude Opus 5.5 (Anthropic) to help edit and restructure this proposal and to format the R setup code and tables
+The research questions, study design, choice of
+dataset, and planned visualizations are my own and build on my dissertation
+work. I reviewed all AI-assisted text and am responsible for the final content.
