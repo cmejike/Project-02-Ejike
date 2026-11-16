@@ -1,31 +1,182 @@
 ---
-title: "Proposal title"
-subtitle: "Proposal"
+title: "Long COVID Symptom Transitions in the Arizona CoVHORT"
+subtitle: "INFO 526 Project 2 Proposal"
+author: "Chidera Ejike"
 format: html
 editor: visual
 ---
 
 ```{r}
-#| label: load-pkgs
+#| label: setup
 #| message: false
+#| warning: false
+
 library(tidyverse)
+library(here)
+
+data_path <- here("data", "covhort_extract.csv")
+has_data  <- file.exists(data_path)
+
+if (has_data) {
+  covhort <- read_csv(data_path)
+}
+
+# Inline helper: formats a number from the extract, or says it is pending.
+# R only evaluates `x` when it is used, so show_n(nrow(covhort)) is safe
+# even before `covhort` exists.
+show_n <- function(x) {
+  if (has_data) scales::comma(x) else "[pending]"
+}
+
+# Cohort counts from the study team's consolidated flowchart (October 2026).
+# Stored here so the text below pulls every number from code.
+flow <- tibble(
+  step = c("surveyed", "flagged", "after_dedup", "covid_pos",
+           "elig_90_180", "elig_181_365", "elig_366_548"),
+  n    = c(9980, 672, 9135, 5033, 2474, 2829, 2479)
+)
+
+# Count for one flowchart step, with a thousands separator
+fc <- function(s) scales::comma(flow$n[flow$step == s])
+
+# Share of COVID+ participants eligible in a post-infection window
+pct_elig <- function(s) {
+  scales::percent(flow$n[flow$step == s] / flow$n[flow$step == "covid_pos"])
+}
 ```
+
+## High-level goal
+
+Use visualization to show how individual Long COVID symptoms persist, resolve, and return over time in a population-based cohort, and how missing surveys and a changing symptom checklist shape what those patterns can mean.
+
+## Goals and motivation
+
+Long COVID (LC), also called post-COVID-19 condition, is a heterogeneous, multisystem condition. The World Health Organization defines it as symptoms that usually begin within three months of SARS-CoV-2 infection, last at least two months, and cannot be explained by another diagnosis; symptoms may fluctuate or relapse (Soriano et al., 2022). Reported symptoms span the neurological, respiratory, cardiovascular, gastrointestinal, and musculoskeletal systems (Davis et al., 2023). Studies have grouped these symptoms into clusters and phenotypes (Thaweethai et al., 2023), but clusters do not show when each individual symptom resolves. It remains unclear why some symptoms clear within months while others persist after the rest have gone.
+
+This project is a first visual look at the data behind Aim 1 of my dissertation, which asks which LC symptoms resolve more quickly than others and what is associated with that. Before fitting trajectory models, I need to see how the data behave: participants enrolled on a rolling basis, response falls over follow-up, the symptom checklist changed over time, and symptoms can resolve and then return. Each of these can produce transitions that look real but are artifacts of the data. The project is descriptive and makes no causal or inferential claims. Its purpose is to inform how Aim 1 defines time, missingness, and resolution.
+
+### Research questions
+
+1.  How complete are symptom data across the post-infection windows, and how much do missing surveys and changes in which symptoms were asked limit what can be followed?
+2.  Among participants with a COVID-19 infection, how do individual symptoms move between present, absent, and missing over time since infection?
+3.  Do symptoms differ in how quickly they resolve, and does that pattern differ by vaccination status or variant era?
+
+### How this builds on recent work
+
+Ballouz et al. (2023) reported symptom status at 6, 12, 18, and 24 months in a Zurich population cohort, compared with uninfected controls. Thaweethai et al. (2025) used a Sankey diagram of overall Long COVID status in the RECOVER-Adult cohort, but did not follow individual symptoms, and almost all infections were in the Omicron era. Brunet et al. (2026) measured recovery against each person's pre-infection baseline, but required all symptoms to decline together, included no GI symptoms, and could not account for reinfections. This project looks at resolution symptom by symptom, including GI symptoms, across infections from 2020 to 2025, with reinfections shown explicitly.
 
 ## Dataset
 
-```{r}
-#| label: load-dataset
-#| message: false
+**Please note!** De-identified data extract from the study team has been requested but not yet received. Until it is received and in the data folder, inline values that come from it print "\[pending\]" in this project proposal document.
+
+The data come from the Arizona CoVHORT, a population-based longitudinal cohort of adults in Arizona launched in May 2020 (Catalfamo et al., 2021). Participants were recruited statewide through testing sites, public health case investigations, and clinic partnerships, so most cases were never hospitalized. They complete quarterly REDCap surveys that include a symptom checklist (Pogreba Brown et al., 2025). I chose this dataset because it is the basis of my dissertation, it follows the same people for several years, and it measures the same symptoms repeatedly, which suits questions about change over time. Use of the de-identified extract in this public repository has been approved by the study PI, the data manager, and the course instructor.
+
+**Cohort.** The consolidated CoVHORT data (October 2026) include `r fc("surveyed")` participants with at least one survey. After removing `r fc("flagged")` flagged participants and deduplicating infection onsets, `r fc("after_dedup")` remain, and `r fc("covid_pos")` of them had a COVID-19 infection. Only about half are eligible in each post-infection window: `r fc("elig_90_180")` (`r pct_elig("elig_90_180")`) at days 90–180, `r fc("elig_181_365")` (`r pct_elig("elig_181_365")`) at days 181–365, and `r fc("elig_366_548")` (`r pct_elig("elig_366_548")`) at days 366–548. Missing data will therefore be the largest group in several figures, not a side detail.
+
+**Extract.** The extract in `data/` will cover these participants in long format, one row per participant per survey. It has `r show_n(nrow(covhort))` rows, `r show_n(ncol(covhort))` columns, and `r show_n(n_distinct(covhort$participant_id))` unique participants.
+
+**Symptom coding.** Only about 20 of roughly 50 checklist symptoms were asked on every survey since 2020. These include diarrhea, nausea, and vomiting; abdominal pain, bloating, and constipation were added later. When a symptom was not on a given survey, its value is recorded as 0, so a 0 cannot be read as "absent" on its own. The study team will provide R logic to recode these cases as missing.
+
+**Index infection.** Each participant's first recorded infection is the index infection, and time is measured in days from it. Later infections appear as a separate "active reinfection".
+
+| Variable | Type | Description |
+|------------------------|-------------------|-----------------------------|
+| Participant ID | ID | De-identified participant ID |
+| Infection ID and order | ID, ordinal | Each infection and its order for the participant |
+| Days since infection | Numeric | Days from the index infection to each survey |
+| Variant era | Categorical | Infection year or dominant variant period at infection |
+| Symptom indicators | Binary | One per symptom per survey |
+| PASC classification | Categorical | PASC+, PASC−, QC1 (heavy skipper), or re-surge in each window (days 90–180, 181–365, 366–548), with eligibility |
+| Age group | Categorical | Age group at enrollment |
+| Sex | Categorical | Self-reported sex |
+| Vaccination | Categorical | Vaccination status at infection |
+| Days to reinfection | Numeric | Days from the index infection to any reinfection |
+| Pre-infection surveys | Binary | Whether the participant has surveys from before the infection |
+
+From these I will derive a post-infection window for each survey and a symptom state for each participant, symptom, and window.
+
+## Planned visualizations
+
+**Figure 1: Data completeness (Question 1).** A stacked bar chart of how many of the `r fc("covid_pos")` COVID+ participants are eligible, ineligible, or flagged in each post-infection window. If feasible, a companion panel will show when each followed symptom was on the checklist. The full survey history is too irregular to map completely for this project.
+
+**Figure 2: Symptom transition alluvial (Question 2).** One panel per selected symptom from the consistently asked set (for example fatigue, shortness of breath, loss of smell or taste, and diarrhea), with the post-infection windows on the x-axis. Following Thaweethai et al. (2025), the states are: present; absent, never present; absent, previously present; active reinfection; and missing. This shows resolution, persistence, re-surgence, and dropout in one view.
+
+**Figure 3: Resolution comparison (Question 3).** Among participants reporting a symptom at days 90–180, the share still reporting it in each later window, with one line per symptom. Each panel is drawn under two resolution rules: absent at one survey, and absent at two consecutive surveys. Brunet et al. (2026) showed this choice matters: the share unresolved at 24 months rose from 8% to 34.5% under their stricter rule. Small multiples compare vaccination status and variant era.
+
+**Anticipated limitations.**
+
+- Participants who stop responding may differ from those who stay, so shares in later windows describe responders, not the whole cohort. Figure 2 keeps "missing" visible for this reason.
+- Subgroup panels in Figure 3 will be dropped or combined when fewer than 20 participants report a symptom at days 90–180, because shares from small groups swing widely.
+- Symptoms are self-reported, and question framing changed across survey versions.
+
+## Self-learned element
+
+The `ggalluvial` package, which was not covered in class. This includes reshaping repeated measures into lodes form, and ordering and coloring five states so the flows stay readable, including for color-blind viewers.
+
+## Plan of attack
+
+I am completing this project individually, so every task is assigned to me. This table will be updated at least weekly.
+
+| Task Name | Status | Assignee | Due | Priority | Summary |
+|------------|------------|------------|------------|------------|------------|
+| Set up repo | Done | Chidera | Nov 13 | High | Create repo from template; add folders with READMEs |
+| Draft proposal | Done | Chidera | Nov 16 | High | Proposal ready for peer review |
+| Revise proposal | Not started | Chidera | Nov 17 | High | Address peer review; close issues by commit |
+| Request data | Waiting on study team | Chidera | Nov 20 | High | Receive extract; meet the study team to review definitions and recoding logic |
+| Draft code on simulated data | Not started | Chidera | Nov 20 | Moderate | If the extract is delayed, write scripts against a small simulated file with the same columns; delete it once real data arrive |
+| Codebook | Not started | Chidera | Nov 21 | High | Document every variable in data/README.md |
+| Clean data | Not started | Chidera | Nov 24 | High | Apply index-infection rule; recode not-asked symptoms; build windows and states |
+| Figure 1 | Not started | Chidera | Nov 25 | High | Data completeness by window |
+| Figure 2 | Not started | Chidera | Dec 1 | High | Learn ggalluvial; build symptom transition alluvial |
+| Figure 3 | Not started | Chidera | Dec 3 | Moderate | Resolution comparison by symptom and subgroup |
+| Presentation | Not started | Chidera | Dec 6 | High | Build Quarto slides; practice to 15 minutes |
+| Present | Not started | Chidera | Dec 7 | High | Class presentation (Dec 7 or 9) |
+| Write-up | Not started | Chidera | Dec 13 | High | 1,000–2,000 words with citations; final render check |
+
+## Repository organization
+
+```         
+Project-02-Ejike/
+├── README.md                 # project overview and how to reproduce
+├── Project-02-Ejike.Rproj
+├── Proposal.qmd              # this proposal
+├── writeup.qmd               # final write-up (added in Week 15)
+├── about.Rmd                 # about page from the course template
+├── abstract.qmd              # abstract from the course template
+├── .github/                  # peer review issue templates
+├── _extra/                   # extra files from the course template
+├── data/
+│   ├── README.md             # codebook
+│   └── covhort_extract.csv   # de-identified extract
+├── scripts/
+│   ├── README.md
+│   ├── 01_clean_data.R
+│   ├── 02_fig_completeness.R
+│   ├── 03_fig_alluvial.R
+│   └── 04_fig_resolution.R
+├── images/
+│   └── README.md             # exported figures
+└── presentation/
+    ├── README.md
+    └── presentation.qmd
 ```
 
-A brief description of your dataset including its provenance, dimensions, etc. as well as the reason why you chose this dataset.
+Scripts are numbered in the order they run and all read the extract in `data/`, so the repo renders for anyone who clones it.
 
-Make sure to load the data and use inline code for some of this information.
+## References
 
-## Questions
+Ballouz T, Menges D, Anagnostopoulos A, et al. Recovery and symptom trajectories up to two years after SARS-CoV-2 infection: population based, longitudinal cohort study. *BMJ*. 2023;381:e074425.
 
-The two questions you want to answer.
+Brunet JPL, van Ockenburg SL, Leyli-Abadi M, Lunter G, Rosmalen JGM. Recovery trajectories and predictors of symptom resolution in post-COVID-19 condition: a population-based cohort study. *Lancet Reg Health Eur*. 2026;69:101802.
 
-## Analysis plan
+Catalfamo CJ, Heslin KM, Shilen A, et al. Design of the Arizona CoVHORT: a population-based COVID-19 cohort. *Front Public Health*. 2021;9:620060.
 
--   A plan for answering each of the questions including the variables involved, variables to be created (if any), external data to be merged in (if any).
+Davis HE, McCorkell L, Vogel JM, Topol EJ. Long COVID: major findings, mechanisms and recommendations. *Nat Rev Microbiol*. 2023;21(3):133–146.
+
+Pogreba Brown K, Austhof E, McFadden CM, et al. Determining the incidence, risk factors and biological drivers of irritable bowel syndrome (IBS) as part of the constellation of postacute sequelae of SARS-CoV-2 infection (PASC) outcomes in the Arizona CoVHORT-GI: a longitudinal cohort study. *BMJ Open*. 2025;15:e095093.
+
+Soriano JB, Murthy S, Marshall JC, Relan P, Diaz JV; WHO Clinical Case Definition Working Group on Post-COVID-19 Condition. A clinical case definition of post-COVID-19 condition by a Delphi consensus. *Lancet Infect Dis*. 2022;22(4):e102–e107.
+
+Thaweethai T, Jolley SE, Karlson EW, et al. Development of a definition of postacute sequelae of SARS-CoV-2 infection. *JAMA*. 2023;329(22):1934–1946.
+
+Thaweethai T, Donohue SE, Martin JN, et al. Long COVID trajectories in the prospectively followed RECOVER-Adult US cohort. *Nat Commun*. 2025;16:9557.
