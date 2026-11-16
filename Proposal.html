@@ -2371,6 +2371,16 @@ vertical-align: -.125em;
 </table>
 <p>From these I will derive a post-infection window for each survey and a symptom state for each participant, symptom, and window.</p>
 </section>
+<section id="approach" class="level2">
+<h2 class="anchored" data-anchor-id="approach">Approach</h2>
+<p>Each figure is built in three steps, all in R:</p>
+<ol type="1">
+<li><strong>Prepare.</strong> <code>01_clean_data.R</code> reads the extract in <code>data/</code>, recodes symptoms that were not asked as missing, and assigns each survey to a post-infection window and a symptom state.</li>
+<li><strong>Summarize.</strong> Each figure script counts participants by window, symptom, and state, so the plotted numbers can be checked against a table.</li>
+<li><strong>Plot.</strong> <code>ggplot2</code> (and <code>ggalluvial</code> for Figure 2) draws the figures, which are saved to <code>images/</code> and reused in the write-up and slides.</li>
+</ol>
+<p>Running the scripts in numbered order reproduces every figure from the extract.</p>
+</section>
 <section id="planned-visualizations" class="level2">
 <h2 class="anchored" data-anchor-id="planned-visualizations">Planned visualizations</h2>
 <p><strong>Figure 1: Data completeness (Question 1).</strong> A stacked bar chart of how many of the 5,033 COVID+ participants are eligible, ineligible, or flagged in each post-infection window. If feasible, a companion panel will show when each followed symptom was on the checklist. The full survey history is too irregular to map completely for this project.</p>

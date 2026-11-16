@@ -97,6 +97,20 @@ The data come from the Arizona CoVHORT, a population-based longitudinal cohort o
 
 From these I will derive a post-infection window for each survey and a symptom state for each participant, symptom, and window.
 
+## Approach
+
+Each figure is built in three steps, all in R:
+
+1.  **Prepare.** `01_clean_data.R` reads the extract in `data/`, recodes symptoms
+    that were not asked as missing, and assigns each survey to a post-infection
+    window and a symptom state.
+2.  **Summarize.** Each figure script counts participants by window, symptom,
+    and state, so the plotted numbers can be checked against a table.
+3.  **Plot.** `ggplot2` (and `ggalluvial` for Figure 2) draws the figures, which
+    are saved to `images/` and reused in the write-up and slides.
+
+Running the scripts in numbered order reproduces every figure from the extract.
+
 ## Planned visualizations
 
 **Figure 1: Data completeness (Question 1).** A stacked bar chart of how many of the `r fc("covid_pos")` COVID+ participants are eligible, ineligible, or flagged in each post-infection window. If feasible, a companion panel will show when each followed symptom was on the checklist. The full survey history is too irregular to map completely for this project.
